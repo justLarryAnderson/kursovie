@@ -119,3 +119,5 @@ INSERT INTO meters (user_id, type, value) VALUES
 (16, 'холодная вода', 115.40),
 (17, 'горячая вода', 87.50),
 (18, 'холодная вода', 139.30);
+
+-- username: houseservices password; housingBot database: housing

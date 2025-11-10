@@ -1,14 +1,37 @@
 import asyncpg
+import os
 from typing import Optional, List, Dict
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Database:
     _pool: Optional[asyncpg.Pool] = None
 
     @classmethod
     async def create_pool(cls):
-        cls._pool = await asyncpg.create_pool(
-            "postgresql://user:password@localhost/housing"
-        )
+        try:
+            database_url = os.getenv('DATABASE_URL')
+            if not database_url:
+                raise ValueError("❌ DATABASE_URL not found in environment variables")
+            
+            print(f"🔄 Connecting to database...")
+            cls._pool = await asyncpg.create_pool(
+                database_url,
+                min_size=1,
+                max_size=10,
+                command_timeout=60
+            )
+            
+            # Проверяем подключение
+            async with cls._pool.acquire() as conn:
+                await conn.execute("SELECT 1")
+            
+            print("✅ Database connection pool created successfully")
+            
+        except Exception as e:
+            print(f"❌ Database connection failed: {e}")
+            raise
 
     @classmethod
     async def get_pool(cls) -> asyncpg.Pool:
@@ -27,10 +50,11 @@ class Database:
     async def get_debt(self, user_id: int) -> float:
         pool = await self.get_pool()
         async with pool.acquire() as conn:
-            return await conn.fetchval(
+            result = await conn.fetchval(
                 "SELECT debt FROM payments WHERE user_id = (SELECT id FROM users WHERE telegram_id = $1) ORDER BY id DESC LIMIT 1",
                 user_id
             )
+            return result if result else 0.0
 
     async def get_user_applications(self, user_id: int) -> List[Dict]:
         pool = await self.get_pool()
